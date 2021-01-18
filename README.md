@@ -5,8 +5,8 @@ languages:
 products:
 - azure
 extensions:
-- services: Sql
-- platforms: dotnet
+  services: Sql
+  platforms: dotnet
 ---
 
 # Getting started on managing SQL server keys with Azure key vault keys in C# #
