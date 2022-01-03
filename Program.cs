@@ -1,25 +1,21 @@
 ﻿// Copyright (c) Microsoft Corporation. All rights reserved.
 // Licensed under the MIT License. See License.txt in the project root for license information.
 
-using Microsoft.Azure.KeyVault;
-using Microsoft.Azure.KeyVault.WebKey;
-using Microsoft.Azure.Management.Fluent;
-using Microsoft.Azure.Management.KeyVault.Fluent.Models;
-using Microsoft.Azure.Management.Network.Fluent.Models;
-using Microsoft.Azure.Management.ResourceManager.Fluent;
-using Microsoft.Azure.Management.ResourceManager.Fluent.Authentication;
-using Microsoft.Azure.Management.ResourceManager.Fluent.Core;
-using Microsoft.Azure.Management.Samples.Common;
-using Microsoft.Azure.Management.Sql.Fluent;
-using Microsoft.Azure.Management.Sql.Fluent.Models;
-using Microsoft.IdentityModel.Clients.ActiveDirectory;
-using Newtonsoft.Json;
 using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Reflection;
 using System.Threading.Tasks;
+using Azure.Identity;
+using Azure.Security.KeyVault.Keys;
+using Microsoft.Azure.Management.Fluent;
+using Microsoft.Azure.Management.KeyVault.Fluent.Models;
+using Microsoft.Azure.Management.ResourceManager.Fluent;
+using Microsoft.Azure.Management.ResourceManager.Fluent.Core;
+using Microsoft.Azure.Management.Samples.Common;
+using Microsoft.IdentityModel.Clients.ActiveDirectory;
+using Newtonsoft.Json;
 
 namespace ManageSqlServerKeysWithAzureKeyVaultKey
 {
@@ -43,7 +39,7 @@ namespace ManageSqlServerKeysWithAzureKeyVaultKey
          *  - Create, get, list and delete SQL Server Keys
          *  - Delete SQL Server
          */
-        public static void RunSample(IAzure azure)
+        public static async Task RunSample(IAzure azure)
         {
             try
             {
@@ -88,11 +84,11 @@ namespace ManageSqlServerKeysWithAzureKeyVaultKey
                 // Create a SQL server key with Azure Key Vault key.
                 Utilities.Log("Creating a SQL server key with Azure Key Vault key");
 
-                KeyVaultClient kvClient = new KeyVaultClient(new KeyVaultClient.AuthenticationCallback(GetToken));
-                var keyBundle = kvClient.CreateKeyAsync(vault.VaultUri, keyName, Microsoft.Azure.KeyVault.WebKey.JsonWebKeyType.Rsa,
-                    keyOps: Microsoft.Azure.KeyVault.WebKey.JsonWebKeyOperation.AllOperations).GetAwaiter().GetResult();
+                var kvClient = new KeyClient(new Uri(vault.VaultUri), new DefaultAzureCredential());
 
-                string keyUri = keyBundle.Key.Kid;
+                var keyBundle = await kvClient.CreateKeyAsync(keyName, KeyType.Rsa);
+
+                string keyUri = keyBundle.Value.Key.Id;
 
                 // Work around for SQL server key name must be formatted as "vault_key_version"
                 string serverKeyName = $"{vaultName}_{keyName}_" +
@@ -147,7 +143,7 @@ namespace ManageSqlServerKeysWithAzureKeyVaultKey
             }
         }
 
-        public static void Main(string[] args)
+        public async static Task Main(string[] args)
         {
             try
             {
@@ -155,7 +151,7 @@ namespace ManageSqlServerKeysWithAzureKeyVaultKey
                 // Authenticate
                 var credentials = SdkContext.AzureCredentialsFactory.FromFile(Environment.GetEnvironmentVariable("AZURE_AUTH_LOCATION"));
 
-                var azure = Azure
+                var azure = Microsoft.Azure.Management.Fluent.Azure
                     .Configure()
                     .WithLogLevel(HttpLoggingDelegatingHandler.Level.Basic)
                     .Authenticate(credentials)
@@ -165,7 +161,7 @@ namespace ManageSqlServerKeysWithAzureKeyVaultKey
                 Utilities.Log("Selected subscription: " + azure.SubscriptionId);
 
 
-                RunSample(azure);
+                await RunSample(azure);
             }
             catch (Exception e)
             {
